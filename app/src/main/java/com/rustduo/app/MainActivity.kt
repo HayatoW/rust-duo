@@ -32,6 +32,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -65,14 +67,20 @@ fun RustDuo(store: ProgressStore) {
             val completion = pendingCompletion?.today(LocalDate.now()) ?: return
             if (saving) return
             saving = true
-            scope.launch {
+            scope.launch(Dispatchers.Main.immediate) {
                 try {
                     store.save(completion)
-                    progress = completion
-                    pendingCompletion = null
-                    nav.navigate("result") { popUpTo("lesson") { inclusive = true } }
-                } catch (_: Exception) { error = true }
-                finally { saving = false }
+                } catch (exception: CancellationException) {
+                    throw exception
+                } catch (_: Exception) {
+                    error = true
+                    return@launch
+                } finally {
+                    saving = false
+                }
+                progress = completion
+                pendingCompletion = null
+                nav.navigate("result") { popUpTo("lesson") { inclusive = true } }
             }
         }
         LaunchedEffect(store) {
