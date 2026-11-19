@@ -46,6 +46,21 @@ fun RustDuo(store: ProgressStore) {
         var revision by remember { mutableIntStateOf(0) }
         var saving by remember { mutableStateOf(false) }
         var error by remember { mutableStateOf(false) }
+        var pendingCompletion by remember { mutableStateOf<Progress?>(null) }
+        fun saveCompletion() {
+            val completion = pendingCompletion ?: return
+            if (saving) return
+            saving = true
+            scope.launch {
+                try {
+                    store.save(completion)
+                    progress = completion
+                    pendingCompletion = null
+                    nav.navigate("result") { popUpTo("lesson") { inclusive = true } }
+                } catch (_: Exception) { error = true }
+                finally { saving = false }
+            }
+        }
         LaunchedEffect(saved) { saved?.let { progress = it.today(LocalDate.now()) } }
         Surface(Modifier.fillMaxSize()) {
             if (saved == null) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -53,6 +68,7 @@ fun RustDuo(store: ProgressStore) {
                 composable("home") {
                     Home(progress.today(LocalDate.now())) { lesson ->
                         progress = progress.today(LocalDate.now())
+                        pendingCompletion = null
                         engine = LessonEngine(lesson, progress.hearts)
                         nav.navigate(if (progress.hearts == 0) "failed" else "lesson")
                     }
@@ -60,7 +76,18 @@ fun RustDuo(store: ProgressStore) {
                 composable("lesson") {
                     val e = engine
                     if (e == null) LaunchedEffect(Unit) { nav.popBackStack("home", false) }
-                    else if (e.finished || (e.failed && e.feedback == null)) {
+                    else if (e.finished) {
+                        Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                            if (saving) {
+                                CircularProgressIndicator()
+                                Text("学習結果を保存中…", modifier = Modifier.padding(top = 16.dp))
+                            } else {
+                                Text("学習結果を保存してください", fontWeight = FontWeight.Bold)
+                                Button(onClick = { saveCompletion() }, modifier = Modifier.padding(top = 16.dp)) { Text("保存を再試行") }
+                                TextButton(onClick = { nav.popBackStack("home", false) }) { Text("保存せず学習の道へ") }
+                            }
+                        }
+                    } else if (e.failed && e.feedback == null) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                     } else {
                         LessonView(e, saving, revision, onClose = { nav.popBackStack("home", false) }, onCheck = { answer ->
@@ -74,15 +101,8 @@ fun RustDuo(store: ProgressStore) {
                             when {
                                 e.failed -> nav.navigate("failed") { popUpTo("lesson") { inclusive = true } }
                                 e.finished -> {
-                                    saving = true
-                                    scope.launch {
-                                        try {
-                                            progress = progress.complete(e.lesson.id, e.xp, LocalDate.now()).copy(hearts = e.hearts)
-                                            store.save(progress)
-                                            nav.navigate("result") { popUpTo("lesson") { inclusive = true } }
-                                        } catch (_: Exception) { error = true }
-                                        finally { saving = false }
-                                    }
+                                    pendingCompletion = progress.complete(e.lesson.id, e.xp, LocalDate.now()).copy(hearts = e.hearts)
+                                    saveCompletion()
                                 }
                             }
                         })
