@@ -82,6 +82,45 @@ class EngineTest {
         assertEquals(1, win.complete(1, 30, day.plusDays(2)).streak)
         assertEquals(1, p.today(day.minusDays(1)).hearts)
     }
+    @Test fun backwardsDateKeepsHeartsAndRefillDate() {
+        val p = Progress(hearts = 2, refillDate = day)
+        val earlier = p.today(day.minusDays(1))
+        assertEquals(2, earlier.hearts)
+        assertEquals(day, earlier.refillDate)
+        assertEquals(2, earlier.today(day).hearts)
+        assertEquals(1, earlier.afterAnswer(false, day.minusDays(1)).hearts)
+        assertEquals(5, earlier.today(day.plusDays(1)).hearts)
+        assertEquals(5, Progress(hearts = 0).today(day).hearts)
+    }
+    @Test fun backwardsCompletionKeepsStreakAndLastCompleted() {
+        val p = Progress(hearts = 2, streak = 4, lastCompleted = day, refillDate = day)
+        val earlier = p.complete(0, 30, day.minusDays(1))
+        assertEquals(4, earlier.streak)
+        assertEquals(day, earlier.lastCompleted)
+        assertEquals(2, earlier.hearts)
+        assertEquals(day, earlier.refillDate)
+        assertEquals(30, earlier.xp)
+        assertTrue(earlier.unlocked(1))
+        assertEquals(4, earlier.complete(0, 30, day).streak)
+        assertEquals(5, earlier.complete(0, 30, day.plusDays(1)).streak)
+        val skipped = earlier.complete(0, 30, day.plusDays(2))
+        assertEquals(1, skipped.streak)
+        assertEquals(day.plusDays(2), skipped.lastCompleted)
+    }
+    @Test fun completionKeepsHeartsAlreadyRefilledDuringLesson() {
+        val e = LessonEngine(Curriculum.lessons.first(), 2)
+        var progress = Progress(hearts = 2, refillDate = day)
+        progress = progress.afterAnswer(e.check("wrong"), day.plusDays(1))
+        e.advance()
+        repeat(5) {
+            progress = progress.afterAnswer(e.check(e.question.answer), day.plusDays(1))
+            e.advance()
+        }
+        assertEquals(1, e.hearts)
+        val completed = e.completeProgress(progress, day.plusDays(1))
+        assertEquals(4, completed.hearts)
+        assertEquals(day.plusDays(1), completed.refillDate)
+    }
     @Test fun contentIsCompleteAndAnswersAreValid() {
         assertEquals(4, Curriculum.units.size)
         Curriculum.units.forEach { assertEquals(3, it.lessons.size) }
