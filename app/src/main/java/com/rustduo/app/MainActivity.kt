@@ -74,7 +74,14 @@ fun RustDuo(store: ProgressStore) {
                         progress = progress.today(LocalDate.now())
                         pendingCompletion = null
                         engine = LessonEngine(lesson, progress.hearts)
-                        nav.navigate(if (progress.hearts == 0) "failed" else "lesson")
+                        nav.navigate("intro")
+                    }
+                }
+                composable("intro") {
+                    val e = engine
+                    if (e == null) LaunchedEffect(Unit) { nav.popBackStack("home", false) }
+                    else LessonIntroView(e.lesson, onClose = { nav.popBackStack("home", false) }) {
+                        nav.navigate(if (e.failed) "failed" else "lesson") { popUpTo("intro") { inclusive = true } }
                     }
                 }
                 composable("lesson") {
@@ -170,6 +177,32 @@ private fun Home(p: Progress, start: (Lesson) -> Unit) {
             item { Text("毎日の小さな一歩が、確かな力に。", modifier = Modifier.fillMaxWidth().padding(12.dp), textAlign = TextAlign.Center, fontSize = 12.sp) }
         }
         Surface(shadowElevation = 8.dp) { Text("⌂  学習の道", color = Green, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(18.dp)) }
+    }
+}
+
+@Composable
+private fun LessonIntroView(lesson: Lesson, onClose: () -> Unit, onStart: () -> Unit) {
+    BackHandler(onBack = onClose)
+    val intro = Intros.byLesson.getValue(lesson.id)
+    Column(Modifier.fillMaxSize()) {
+        TextButton(onClick = onClose, modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)) {
+            Text("✕", fontSize = 23.sp, color = Color(0xFF839185))
+        }
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
+            Text("このレッスンで学ぶこと", color = Green, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text(lesson.title, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(vertical = 18.dp))
+            intro.sentences.forEach { sentence ->
+                Text(sentence, fontSize = 16.sp, lineHeight = 25.sp, modifier = Modifier.padding(bottom = 12.dp))
+            }
+            Surface(color = Color(0xFF203B36), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                Text(intro.code, fontFamily = FontFamily.Monospace, color = Color(0xFFE2F3D8), fontSize = 14.sp, lineHeight = 23.sp,
+                    modifier = Modifier.horizontalScroll(rememberScrollState()).padding(18.dp))
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+        Button(onClick = onStart, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth().padding(24.dp).height(54.dp)) {
+            Text("はじめる", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        }
     }
 }
 
