@@ -25,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -300,9 +301,10 @@ private fun LessonView(e: LessonEngine, saving: Boolean, revision: Int, onClose:
     var choice by remember(q, questionRound) { mutableStateOf("") }
     val selected = remember(q, questionRound) { mutableStateListOf<Int>() }
     val options = remember(q, questionRound) { q.choices.shuffled(kotlin.random.Random(e.lesson.id + questionRound + 19)) }
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-    val sideBySide = maxWidth > maxHeight && maxHeight < 480.dp
-    val feedbackMaxHeight = maxHeight * 0.55f
+    val config = LocalConfiguration.current
+    val sideBySide = config.screenWidthDp > config.screenHeightDp && config.screenHeightDp < 480
+    val feedbackMaxHeight = config.screenHeightDp.dp * 0.55f
+    Box(Modifier.fillMaxSize()) {
     val frame = if (sideBySide) Modifier.widthIn(max = 1040.dp).fillMaxWidth() else ContentWidth
     val question: @Composable (Modifier) -> Unit = { modifier ->
         Column(modifier.gameReveal(questionRound).verticalScroll(questionScroll), horizontalAlignment = Alignment.CenterHorizontally) {
