@@ -187,7 +187,7 @@ private fun LessonView(e: LessonEngine, saving: Boolean, revision: Int, onClose:
             Text("♥ ${e.hearts}", color = Color(0xFFC64C56), fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp))
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
-            Text(if (e.attempts >= e.lesson.questions.size) "もう一度チャレンジ" else "${e.lesson.title}  /  ${e.doneCount + 1} 問目", color = Green, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 18.dp))
+            Text(if (questionRound >= e.lesson.questions.size) "もう一度チャレンジ" else "${e.lesson.title}  /  ${questionRound + 1} 問目", color = Green, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 18.dp))
             Text(q.prompt, fontSize = 24.sp, lineHeight = 34.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(bottom = 20.dp))
             if (q.kind == Kind.CODE) Surface(color = Color(0xFF203B36), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp)) {
                 Text(q.code, fontFamily = FontFamily.Monospace, color = Color(0xFFE2F3D8), fontSize = 14.sp, lineHeight = 23.sp, modifier = Modifier.horizontalScroll(rememberScrollState()).padding(18.dp))
