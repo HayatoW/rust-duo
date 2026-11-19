@@ -34,7 +34,7 @@ class LessonFlowTest {
         compose.onNodeWithText("正解！").assertIsDisplayed()
         assertProgress(0.2f)
         compose.onNodeWithText("続ける").performClick()
-        listOf("let", "mut", "x", "=", "5;").forEach { compose.onNodeWithText(it, substring = false).performClick() }
+        listOf("let", "n", "=", "8;").forEach { compose.onNodeWithText(it, substring = false).performClick() }
         checkAndContinue()
         compose.onNodeWithText("変更不可").performClick()
         checkAndContinue()
