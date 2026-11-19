@@ -13,6 +13,10 @@ data class Progress(val completed: Set<Int> = emptySet(), val xp: Int = 0, val h
         streak = if (lastCompleted != null && lastCompleted < date.minusDays(1)) 0 else streak
     )
     fun unlocked(id: Int) = id == 0 || id - 1 in completed
+    fun afterAnswer(correct: Boolean, date: LocalDate): Progress {
+        val current = today(date)
+        return current.copy(hearts = (current.hearts - if (correct) 0 else 1).coerceAtLeast(0))
+    }
     fun complete(id: Int, earned: Int, date: LocalDate): Progress {
         val current = today(date)
         return current.copy(completed = completed + id, xp = xp + earned,
@@ -33,6 +37,10 @@ class LessonEngine(val lesson: Lesson, initialHearts: Int) {
     val doneCount get() = lesson.questions.size - queue.size.coerceAtMost(lesson.questions.size)
     val accuracy get() = if (attempts == 0) 0 else correct * 100 / attempts
     val xp get() = if (finished) 20 + accuracy / 10 else 0
+    fun completeProgress(progress: Progress, date: LocalDate): Progress {
+        check(finished)
+        return progress.complete(lesson.id, xp, date)
+    }
     fun check(answer: String): Boolean {
         check(!failed && !finished && feedback == null)
         attempts++

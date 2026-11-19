@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.*
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -39,20 +40,39 @@ class MainActivity : ComponentActivity() {
 fun RustDuo(store: ProgressStore) {
     MaterialTheme(colorScheme = lightColorScheme(primary = Green, background = Paper, surface = Paper, onSurface = Ink)) {
         val nav = rememberNavController()
-        val saved by store.progress.collectAsState(initial = null)
         val scope = rememberCoroutineScope()
         var progress by remember { mutableStateOf(Progress()) }
+        var loaded by remember { mutableStateOf(false) }
         var engine by remember { mutableStateOf<LessonEngine?>(null) }
         var revision by remember { mutableIntStateOf(0) }
         var saving by remember { mutableStateOf(false) }
         var error by remember { mutableStateOf(false) }
-        LaunchedEffect(saved) { saved?.let { progress = it.today(LocalDate.now()) } }
+        var pendingCompletion by remember { mutableStateOf<Progress?>(null) }
+        fun saveCompletion() {
+            val completion = pendingCompletion?.today(LocalDate.now()) ?: return
+            if (saving) return
+            saving = true
+            scope.launch {
+                try {
+                    store.save(completion)
+                    progress = completion
+                    pendingCompletion = null
+                    nav.navigate("result") { popUpTo("lesson") { inclusive = true } }
+                } catch (_: Exception) { error = true }
+                finally { saving = false }
+            }
+        }
+        LaunchedEffect(store) {
+            progress = store.progress.first().today(LocalDate.now())
+            loaded = true
+        }
         Surface(Modifier.fillMaxSize()) {
-            if (saved == null) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            if (!loaded) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             else NavHost(nav, "home", modifier = Modifier.safeDrawingPadding()) {
                 composable("home") {
                     Home(progress.today(LocalDate.now())) { lesson ->
                         progress = progress.today(LocalDate.now())
+                        pendingCompletion = null
                         engine = LessonEngine(lesson, progress.hearts)
                         nav.navigate(if (progress.hearts == 0) "failed" else "lesson")
                     }
@@ -60,12 +80,23 @@ fun RustDuo(store: ProgressStore) {
                 composable("lesson") {
                     val e = engine
                     if (e == null) LaunchedEffect(Unit) { nav.popBackStack("home", false) }
-                    else if (e.finished || (e.failed && e.feedback == null)) {
+                    else if (e.finished) {
+                        Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                            if (saving) {
+                                CircularProgressIndicator()
+                                Text("学習結果を保存中…", modifier = Modifier.padding(top = 16.dp))
+                            } else {
+                                Text("学習結果を保存してください", fontWeight = FontWeight.Bold)
+                                Button(onClick = { saveCompletion() }, modifier = Modifier.padding(top = 16.dp)) { Text("保存を再試行") }
+                                TextButton(onClick = { nav.popBackStack("home", false) }) { Text("保存せず学習の道へ") }
+                            }
+                        }
+                    } else if (e.failed && e.feedback == null) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                     } else {
                         LessonView(e, saving, revision, onClose = { nav.popBackStack("home", false) }, onCheck = { answer ->
-                            e.check(answer)
-                            progress = progress.copy(hearts = e.hearts)
+                            val correct = e.check(answer)
+                            progress = progress.afterAnswer(correct, LocalDate.now())
                             revision++
                             scope.launch { try { store.save(progress) } catch (_: Exception) { error = true } }
                         }, onNext = {
@@ -74,15 +105,8 @@ fun RustDuo(store: ProgressStore) {
                             when {
                                 e.failed -> nav.navigate("failed") { popUpTo("lesson") { inclusive = true } }
                                 e.finished -> {
-                                    saving = true
-                                    scope.launch {
-                                        try {
-                                            progress = progress.complete(e.lesson.id, e.xp, LocalDate.now()).copy(hearts = e.hearts)
-                                            store.save(progress)
-                                            nav.navigate("result") { popUpTo("lesson") { inclusive = true } }
-                                        } catch (_: Exception) { error = true }
-                                        finally { saving = false }
-                                    }
+                                    pendingCompletion = e.completeProgress(progress, LocalDate.now())
+                                    saveCompletion()
                                 }
                             }
                         })
@@ -167,7 +191,7 @@ private fun LessonView(e: LessonEngine, saving: Boolean, revision: Int, onClose:
             Text("♥ ${e.hearts}", color = Color(0xFFC64C56), fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp))
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
-            Text(if (e.attempts >= e.lesson.questions.size) "もう一度チャレンジ" else "${e.lesson.title}  /  ${e.doneCount + 1} 問目", color = Green, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 18.dp))
+            Text(if (questionRound >= e.lesson.questions.size) "もう一度チャレンジ" else "${e.lesson.title}  /  ${questionRound + 1} 問目", color = Green, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 18.dp))
             Text(q.prompt, fontSize = 24.sp, lineHeight = 34.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(bottom = 20.dp))
             if (q.kind == Kind.CODE) Surface(color = Color(0xFF203B36), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp)) {
                 Text(q.code, fontFamily = FontFamily.Monospace, color = Color(0xFFE2F3D8), fontSize = 14.sp, lineHeight = 23.sp, modifier = Modifier.horizontalScroll(rememberScrollState()).padding(18.dp))

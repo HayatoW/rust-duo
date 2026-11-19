@@ -30,9 +30,47 @@ class EngineTest {
     }
     @Test fun cannotDoubleCheckOrSkipFeedback() {
         val e = LessonEngine(Curriculum.lessons.first(), 5)
+        assertThrows(IllegalStateException::class.java) { e.completeProgress(Progress(), day) }
         assertThrows(IllegalStateException::class.java) { e.advance() }
         e.check("let")
         assertThrows(IllegalStateException::class.java) { e.check("let") }
+    }
+    @Test fun completionAcrossMidnightKeepsDailyRefill() {
+        val e = LessonEngine(Curriculum.lessons.first(), 5)
+        var progress = Progress().today(day)
+        progress = progress.afterAnswer(e.check("wrong"), day)
+        e.advance()
+        repeat(5) {
+            progress = progress.afterAnswer(e.check(e.question.answer), day)
+            e.advance()
+        }
+        assertEquals(4, e.hearts)
+        assertEquals(4, progress.hearts)
+        val completed = e.completeProgress(progress, day.plusDays(1))
+        assertEquals(5, completed.hearts)
+        assertEquals(day.plusDays(1), completed.refillDate)
+        assertEquals(day.plusDays(1), completed.lastCompleted)
+        assertEquals(setOf(0), completed.completed)
+        assertEquals(28, completed.xp)
+        assertEquals(1, completed.streak)
+    }
+    @Test fun answersAfterMidnightOnlySpendTodaysHearts() {
+        val yesterday = Progress(hearts = 2, refillDate = day)
+        val correct = yesterday.afterAnswer(true, day.plusDays(1))
+        assertEquals(5, correct.hearts)
+        val wrong = yesterday.afterAnswer(false, day.plusDays(1))
+        assertEquals(4, wrong.hearts)
+        assertEquals(day.plusDays(1), wrong.refillDate)
+        assertEquals(4, wrong.afterAnswer(true, day.plusDays(1)).hearts)
+        val secondWrong = wrong.afterAnswer(false, day.plusDays(1))
+        assertEquals(3, secondWrong.hearts)
+        assertEquals(3, secondWrong.complete(0, 20, day.plusDays(1)).hearts)
+    }
+    @Test fun sameDayAnswersDoNotRefillOrMakeHeartsNegative() {
+        val progress = Progress(hearts = 2, refillDate = day)
+        assertEquals(2, progress.afterAnswer(true, day).hearts)
+        assertEquals(1, progress.afterAnswer(false, day).hearts)
+        assertEquals(0, progress.copy(hearts = 0).afterAnswer(false, day).hearts)
     }
     @Test fun refillAndStreakCalendarBoundaries() {
         val p = Progress(hearts = 1, streak = 3, lastCompleted = day.minusDays(1), refillDate = day.minusDays(1))
