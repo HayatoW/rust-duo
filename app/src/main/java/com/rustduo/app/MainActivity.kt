@@ -221,7 +221,10 @@ private fun LessonView(e: LessonEngine, saving: Boolean, revision: Int, onClose:
             Column(Modifier.fillMaxWidth().padding(24.dp)) {
                 if (feedback != null) {
                     Text(if (feedback) "正解！" else "不正解", fontWeight = FontWeight.ExtraBold, fontSize = 23.sp, color = if (feedback) Green else Color(0xFFB74145))
-                    if (!feedback) Text("正しい答え：${q.answer}", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+                    if (!feedback) {
+                        Text("あなたの答え：$choice", modifier = Modifier.padding(top = 8.dp))
+                        Text("正しい答え：${q.answer}", fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+                    }
                     Text(q.explanation, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp, bottom = 16.dp))
                 }
                 Button(onClick = { if (feedback == null) onCheck(choice) else onNext() }, enabled = !saving && (feedback != null || choice.isNotEmpty()), shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth().height(54.dp)) {

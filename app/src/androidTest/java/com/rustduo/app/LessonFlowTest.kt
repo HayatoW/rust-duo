@@ -16,7 +16,7 @@ class LessonFlowTest {
         compose.onNodeWithText("続ける").performClick()
         compose.onNodeWithText("5", useUnmergedTree = false).performClick()
         checkAndContinue()
-        listOf("let", "mut", "x", "=", "5;").forEach { compose.onNodeWithText(it, substring = false).performClick() }
+        listOf("let", "n", "=", "8;").forEach { compose.onNodeWithText(it, substring = false).performClick() }
         checkAndContinue()
         compose.onNodeWithText("変更不可").performClick()
         checkAndContinue()
