@@ -17,6 +17,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,6 +30,9 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -214,10 +218,10 @@ private fun Home(p: Progress, start: (Lesson) -> Unit) {
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(bottom = 22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             item {
                 FlowRow(ContentWidth.padding(horizontal = 22.dp, vertical = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("🦀", fontSize = 28.sp, modifier = Modifier.align(Alignment.CenterVertically))
-                    Stat("🔥 ${p.streak}", "連続日数", Color(0xFFB65E18))
-                    Stat("${p.xp} XP", "合計経験値", Green)
-                    Stat("♥ ${p.hearts}/5", "ハート", Color(0xFFC64C56))
+                    Text("🦀", fontSize = 28.sp, modifier = Modifier.align(Alignment.CenterVertically).clearAndSetSemantics {})
+                    Stat("🔥 ${p.streak}", "連続日数", Color(0xFFB65E18), "連続日数 ${p.streak} 日")
+                    Stat("${p.xp} XP", "合計経験値", Green, "合計経験値 ${p.xp} XP")
+                    Stat("♥ ${p.hearts}/5", "ハート", Color(0xFFC64C56), "ハート 5 個中 ${p.hearts} 個")
                 }
                 HorizontalDivider(color = Color(0xFFE1E8DE))
             }
@@ -240,7 +244,7 @@ private fun Home(p: Progress, start: (Lesson) -> Unit) {
                         val complete = lesson.id in p.completed
                         val unlocked = p.unlocked(lesson.id)
                         Column(ContentWidth.padding(horizontal = 22.dp).padding(top = 12.dp).offset(x = when(index) { 0 -> (-40).dp; 1 -> 40.dp; else -> 0.dp }), horizontalAlignment = Alignment.CenterHorizontally) {
-                            if (index > 0) Text("•\n•", color = Color(0xFFCBD6C5), lineHeight = 10.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(bottom = 8.dp))
+                            if (index > 0) Text("•\n•", color = Color(0xFFCBD6C5), lineHeight = 10.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(bottom = 8.dp).clearAndSetSemantics {})
                             LessonPathNode(lesson, complete, unlocked) { start(lesson) }
                         }
                     }
@@ -253,8 +257,8 @@ private fun Home(p: Progress, start: (Lesson) -> Unit) {
 }
 
 @Composable
-private fun Stat(value: String, label: String, color: Color) =
-    Text("$value\n$label", Modifier.padding(horizontal = 6.dp), color = color, fontWeight = FontWeight.Bold, fontSize = 12.sp, textAlign = TextAlign.Center, softWrap = false)
+private fun Stat(value: String, label: String, color: Color, description: String) =
+    Text("$value\n$label", Modifier.padding(horizontal = 6.dp).semantics { contentDescription = description }, color = color, fontWeight = FontWeight.Bold, fontSize = 12.sp, textAlign = TextAlign.Center, softWrap = false)
 
 @Composable
 internal fun LessonIntroView(lesson: Lesson, hearts: Int, onClose: () -> Unit, onStart: () -> Unit) {
@@ -262,7 +266,7 @@ internal fun LessonIntroView(lesson: Lesson, hearts: Int, onClose: () -> Unit, o
     val intro = Intros.byLesson.getValue(lesson.id)
     Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
         TextButton(onClick = onClose, modifier = Modifier.align(Alignment.Start).padding(horizontal = 12.dp, vertical = 12.dp)) {
-            Text("✕", fontSize = 23.sp, color = Color(0xFF839185))
+            Text("✕", fontSize = 23.sp, color = Color(0xFF839185), modifier = Modifier.semantics { contentDescription = "レッスンを閉じる" })
         }
         Column(Modifier.weight(1f).then(ContentWidth).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
             Text("このレッスンで学ぶこと", color = Green, fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -344,11 +348,12 @@ private fun LessonView(e: LessonEngine, saving: Boolean, revision: Int, onClose:
                     else -> Color.White
                 }
                 Surface(shape = RoundedCornerShape(16.dp), border = BorderStroke(if (active || correctAnswer) 2.dp else 1.dp, accent), color = tint,
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp).clickable(enabled = feedback == null) { choice = answer }) {
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp).selectable(selected = active, enabled = feedback == null, role = Role.RadioButton) { choice = answer }
+                        .semantics { if (correctAnswer) stateDescription = "正解" else if (wrongChoice) stateDescription = "あなたの答え・不正解" }) {
                     Row(Modifier.padding(17.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(when { correctAnswer -> "✓"; wrongChoice -> "✕"; else -> "${index + 1}" },
                             fontSize = 12.sp, color = if (active || correctAnswer) accent else Color(0xFF74836F),
-                            modifier = Modifier.padding(end = 18.dp))
+                            modifier = Modifier.padding(end = 18.dp).clearAndSetSemantics {})
                         Text(answer, fontSize = 17.sp, fontWeight = if (active || correctAnswer) FontWeight.Bold else FontWeight.Medium)
                     }
                 }
@@ -396,9 +401,9 @@ private fun LessonView(e: LessonEngine, saving: Boolean, revision: Int, onClose:
     }
     Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(frame.padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { close = true }) { Text("✕", fontSize = 23.sp, color = Color(0xFF839185)) }
+            TextButton(onClick = { close = true }) { Text("✕", fontSize = 23.sp, color = Color(0xFF839185), modifier = Modifier.semantics { contentDescription = "レッスンを閉じる" }) }
             LinearProgressIndicator(progress = { progress }, modifier = Modifier.weight(1f).height(12.dp), color = Green, trackColor = Color(0xFFE2E9DD), strokeCap = androidx.compose.ui.graphics.StrokeCap.Round)
-            Text("♥ ${e.hearts}", color = Color(0xFFC64C56), fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp))
+            Text("♥ ${e.hearts}", color = Color(0xFFC64C56), fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp).semantics { contentDescription = "ハート 残り ${e.hearts}" })
         }
         if (sideBySide) Row(frame.weight(1f)) {
             question(Modifier.weight(1.2f))
