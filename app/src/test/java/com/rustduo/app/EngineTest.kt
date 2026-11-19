@@ -6,6 +6,15 @@ import java.time.LocalDate
 
 class EngineTest {
     private val day = LocalDate.of(2025, 5, 5)
+    @Test fun everyLessonHasAnIntro() {
+        assertEquals(Curriculum.lessons.map { it.id }.toSet(), Intros.byLesson.keys)
+        Curriculum.lessons.forEach { lesson ->
+            val intro = Intros.byLesson.getValue(lesson.id)
+            assertTrue(intro.sentences.size in 2..4)
+            assertTrue(intro.sentences.all { it.isNotBlank() })
+            assertTrue(intro.code.isNotBlank())
+        }
+    }
     @Test fun emptyLessonIsRejected() {
         assertThrows(IllegalArgumentException::class.java) { LessonEngine(Lesson(0, "", emptyList()), 5) }
     }
