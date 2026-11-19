@@ -8,8 +8,8 @@ data class Lesson(val id: Int, val title: String, val questions: List<Question>)
 data class UnitContent(val title: String, val subtitle: String, val lessons: List<Lesson>)
 data class Progress(val completed: Set<Int> = emptySet(), val xp: Int = 0, val hearts: Int = 5, val streak: Int = 0, val lastCompleted: LocalDate? = null, val refillDate: LocalDate? = null) {
     fun today(date: LocalDate): Progress = copy(
-        hearts = if (refillDate != date) 5 else hearts,
-        refillDate = date,
+        hearts = if (refillDate == null || date > refillDate) 5 else hearts,
+        refillDate = if (refillDate == null || date > refillDate) date else refillDate,
         streak = if (lastCompleted != null && lastCompleted < date.minusDays(1)) 0 else streak
     )
     fun unlocked(id: Int) = id == 0 || id - 1 in completed
@@ -20,8 +20,8 @@ data class Progress(val completed: Set<Int> = emptySet(), val xp: Int = 0, val h
     fun complete(id: Int, earned: Int, date: LocalDate): Progress {
         val current = today(date)
         return current.copy(completed = completed + id, xp = xp + earned,
-            streak = if (lastCompleted == date) current.streak else if (lastCompleted == date.minusDays(1)) current.streak + 1 else 1,
-            lastCompleted = date)
+            streak = if (lastCompleted != null && date <= lastCompleted) current.streak else if (lastCompleted == date.minusDays(1)) current.streak + 1 else 1,
+            lastCompleted = if (lastCompleted != null && date < lastCompleted) lastCompleted else date)
     }
 }
 class LessonEngine(val lesson: Lesson, initialHearts: Int) {
