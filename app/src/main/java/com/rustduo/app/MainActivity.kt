@@ -48,7 +48,7 @@ fun RustDuo(store: ProgressStore) {
         var error by remember { mutableStateOf(false) }
         var pendingCompletion by remember { mutableStateOf<Progress?>(null) }
         fun saveCompletion() {
-            val completion = pendingCompletion ?: return
+            val completion = pendingCompletion?.today(LocalDate.now()) ?: return
             if (saving) return
             saving = true
             scope.launch {
@@ -91,8 +91,8 @@ fun RustDuo(store: ProgressStore) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                     } else {
                         LessonView(e, saving, revision, onClose = { nav.popBackStack("home", false) }, onCheck = { answer ->
-                            e.check(answer)
-                            progress = progress.copy(hearts = e.hearts)
+                            val correct = e.check(answer)
+                            progress = progress.afterAnswer(correct, LocalDate.now())
                             revision++
                             scope.launch { try { store.save(progress) } catch (_: Exception) { error = true } }
                         }, onNext = {
@@ -101,7 +101,7 @@ fun RustDuo(store: ProgressStore) {
                             when {
                                 e.failed -> nav.navigate("failed") { popUpTo("lesson") { inclusive = true } }
                                 e.finished -> {
-                                    pendingCompletion = progress.complete(e.lesson.id, e.xp, LocalDate.now()).copy(hearts = e.hearts)
+                                    pendingCompletion = e.completeProgress(progress, LocalDate.now())
                                     saveCompletion()
                                 }
                             }
