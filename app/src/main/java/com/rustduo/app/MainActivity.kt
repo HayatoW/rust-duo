@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -52,7 +53,7 @@ fun RustDuo(store: ProgressStore) {
             val completion = pendingCompletion?.today(LocalDate.now()) ?: return
             if (saving) return
             saving = true
-            scope.launch {
+            scope.launch(Dispatchers.Main.immediate) {
                 try {
                     store.save(completion)
                     progress = completion
