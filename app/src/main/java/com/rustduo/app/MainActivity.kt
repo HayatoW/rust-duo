@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.*
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -39,9 +40,9 @@ class MainActivity : ComponentActivity() {
 fun RustDuo(store: ProgressStore) {
     MaterialTheme(colorScheme = lightColorScheme(primary = Green, background = Paper, surface = Paper, onSurface = Ink)) {
         val nav = rememberNavController()
-        val saved by store.progress.collectAsState(initial = null)
         val scope = rememberCoroutineScope()
         var progress by remember { mutableStateOf(Progress()) }
+        var loaded by remember { mutableStateOf(false) }
         var engine by remember { mutableStateOf<LessonEngine?>(null) }
         var revision by remember { mutableIntStateOf(0) }
         var saving by remember { mutableStateOf(false) }
@@ -61,9 +62,12 @@ fun RustDuo(store: ProgressStore) {
                 finally { saving = false }
             }
         }
-        LaunchedEffect(saved) { saved?.let { progress = it.today(LocalDate.now()) } }
+        LaunchedEffect(store) {
+            progress = store.progress.first().today(LocalDate.now())
+            loaded = true
+        }
         Surface(Modifier.fillMaxSize()) {
-            if (saved == null) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            if (!loaded) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             else NavHost(nav, "home", modifier = Modifier.safeDrawingPadding()) {
                 composable("home") {
                     Home(progress.today(LocalDate.now())) { lesson ->
