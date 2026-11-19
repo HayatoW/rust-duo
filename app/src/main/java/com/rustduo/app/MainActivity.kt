@@ -274,9 +274,10 @@ private fun LessonView(e: LessonEngine, saving: Boolean, revision: Int, onClose:
                     val reveal = remember(questionRound) { MutableTransitionState(false).apply { targetState = true } }
                     val accent = if (feedback) Green else IncorrectInk
                     AnimatedVisibility(visibleState = reveal,
+                        modifier = Modifier.weight(1f, fill = false),
                         enter = expandVertically(expandFrom = Alignment.Bottom, animationSpec = tween(180)) + fadeIn(tween(160)),
                         exit = ExitTransition.None) {
-                        Column(Modifier.semantics { liveRegion = LiveRegionMode.Polite }) {
+                        Column(Modifier.verticalScroll(key(questionRound) { rememberScrollState() }).semantics { liveRegion = LiveRegionMode.Polite }) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Surface(shape = CircleShape, color = accent, contentColor = Color.White) {
                                     Box(Modifier.size(32.dp).clearAndSetSemantics {}, contentAlignment = Alignment.Center) {
