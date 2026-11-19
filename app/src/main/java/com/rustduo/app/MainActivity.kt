@@ -1,5 +1,9 @@
 package com.rustduo.app
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -21,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -31,6 +36,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.compose.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -51,9 +60,38 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
+private fun rememberToday(): State<LocalDate> {
+    val context = LocalContext.current
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val today = remember { mutableStateOf(LocalDate.now()) }
+    DisposableEffect(context, lifecycle) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) { today.value = LocalDate.now() }
+        }
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_DATE_CHANGED)
+            addAction(Intent.ACTION_TIME_CHANGED)
+            addAction(Intent.ACTION_TIMEZONE_CHANGED)
+        }
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) today.value = LocalDate.now()
+        }
+        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        lifecycle.addObserver(observer)
+        today.value = LocalDate.now()
+        onDispose {
+            context.unregisterReceiver(receiver)
+            lifecycle.removeObserver(observer)
+        }
+    }
+    return today
+}
+
+@Composable
 fun RustDuo(store: ProgressStore) {
     MaterialTheme(colorScheme = lightColorScheme(primary = Green, background = Paper, surface = Paper, onSurface = Ink)) {
         val nav = rememberNavController()
+        val today by rememberToday()
         val scope = rememberCoroutineScope()
         val view = LocalView.current
         var progress by remember { mutableStateOf(Progress()) }
@@ -65,7 +103,7 @@ fun RustDuo(store: ProgressStore) {
         var pendingCompletion by remember { mutableStateOf<Progress?>(null) }
         var celebration by remember { mutableStateOf<LessonCelebration?>(null) }
         fun saveCompletion() {
-            val completion = pendingCompletion?.today(LocalDate.now()) ?: return
+            val completion = pendingCompletion?.today(today) ?: return
             if (saving) return
             saving = true
             scope.launch(Dispatchers.Main.immediate) {
@@ -85,15 +123,15 @@ fun RustDuo(store: ProgressStore) {
             }
         }
         LaunchedEffect(store) {
-            progress = store.progress.first().today(LocalDate.now())
+            progress = store.progress.first().today(today)
             loaded = true
         }
         Surface(Modifier.fillMaxSize()) {
             if (!loaded) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             else NavHost(nav, "home", modifier = Modifier.safeDrawingPadding()) {
                 composable("home") {
-                    Home(progress.today(LocalDate.now())) { lesson ->
-                        progress = progress.today(LocalDate.now())
+                    Home(progress.today(today)) { lesson ->
+                        progress = progress.today(today)
                         pendingCompletion = null
                         celebration = null
                         engine = LessonEngine(lesson, progress.hearts)
@@ -103,8 +141,12 @@ fun RustDuo(store: ProgressStore) {
                 composable("intro") {
                     val e = engine
                     if (e == null) LaunchedEffect(Unit) { nav.popBackStack("home", false) }
-                    else LessonIntroView(e.lesson, onClose = { nav.popBackStack("home", false) }) {
-                        nav.navigate(if (e.failed) "failed" else "lesson") { popUpTo("intro") { inclusive = true } }
+                    else LessonIntroView(e.lesson, progress.today(today).hearts, onClose = { nav.popBackStack("home", false) }) {
+                        progress = progress.today(today)
+                        if (progress.hearts > 0) {
+                            engine = LessonEngine(e.lesson, progress.hearts)
+                            nav.navigate("lesson") { popUpTo("intro") { inclusive = true } }
+                        }
                     }
                 }
                 composable("lesson") {
@@ -128,7 +170,7 @@ fun RustDuo(store: ProgressStore) {
                             if (e.feedback == null && !e.finished && !e.failed) {
                                 val correct = e.check(answer)
                                 view.playAnswerHaptic(correct)
-                                progress = progress.afterAnswer(correct, LocalDate.now())
+                                progress = progress.afterAnswer(correct, today)
                                 revision++
                                 scope.launch { try { store.save(progress) } catch (_: Exception) { error = true } }
                             }
@@ -139,7 +181,7 @@ fun RustDuo(store: ProgressStore) {
                                 when {
                                     e.failed -> nav.navigate("failed") { popUpTo("lesson") { inclusive = true } }
                                     e.finished -> {
-                                        val completed = e.completeProgress(progress, LocalDate.now())
+                                        val completed = e.completeProgress(progress, today)
                                         val next = Curriculum.units.asSequence().flatMap { it.lessons.asSequence() }
                                             .firstOrNull { it.id == e.lesson.id + 1 }
                                         celebration = lessonCelebration(progress, completed, next)
@@ -214,7 +256,7 @@ private fun Stat(value: String, label: String, color: Color) =
     Text("$value\n$label", Modifier.padding(horizontal = 6.dp), color = color, fontWeight = FontWeight.Bold, fontSize = 12.sp, textAlign = TextAlign.Center, softWrap = false)
 
 @Composable
-private fun LessonIntroView(lesson: Lesson, onClose: () -> Unit, onStart: () -> Unit) {
+internal fun LessonIntroView(lesson: Lesson, hearts: Int, onClose: () -> Unit, onStart: () -> Unit) {
     BackHandler(onBack = onClose)
     val intro = Intros.byLesson.getValue(lesson.id)
     Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -233,7 +275,9 @@ private fun LessonIntroView(lesson: Lesson, onClose: () -> Unit, onStart: () -> 
             }
             Spacer(Modifier.height(16.dp))
         }
-        Button(onClick = onStart, shape = RoundedCornerShape(14.dp), modifier = ContentWidth.padding(24.dp).heightIn(min = 54.dp)) {
+        if (hearts == 0) Text("ハートがありません。明日、5 個に回復します。", color = Color(0xFF708078),
+            modifier = ContentWidth.padding(horizontal = 24.dp), fontSize = 14.sp)
+        Button(onClick = onStart, enabled = hearts > 0, shape = RoundedCornerShape(14.dp), modifier = ContentWidth.padding(24.dp).heightIn(min = 54.dp)) {
             Text("はじめる", fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
     }
