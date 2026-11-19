@@ -13,6 +13,16 @@ class LessonFlowTest {
         compose.waitUntil(15000) { compose.onAllNodesWithTag("lesson-0").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("次はここ！").assertIsDisplayed()
         compose.onNodeWithTag("lesson-0").performClick()
+        compose.onNodeWithText("このレッスンで学ぶこと").assertIsDisplayed()
+        compose.onNodeWithText("変数を宣言するキーワードは？").assertDoesNotExist()
+        compose.onNodeWithText("✕").performClick()
+        compose.onNodeWithText("♥ 5/5\nハート").assertIsDisplayed()
+        compose.onNodeWithTag("lesson-0").performClick()
+        compose.onNodeWithText("このレッスンで学ぶこと").assertIsDisplayed()
+        compose.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+        compose.onNodeWithText("0 XP\n合計経験値").assertIsDisplayed()
+        compose.onNodeWithTag("lesson-0").performClick()
+        compose.onNodeWithText("はじめる").performClick()
         compose.onNodeWithText("var").performClick()
         compose.onNodeWithText("チェック").performClick()
         compose.onNodeWithText("不正解").assertIsDisplayed()
