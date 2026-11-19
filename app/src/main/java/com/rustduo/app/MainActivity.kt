@@ -140,8 +140,12 @@ fun RustDuo(store: ProgressStore) {
                 composable("intro") {
                     val e = engine
                     if (e == null) LaunchedEffect(Unit) { nav.popBackStack("home", false) }
-                    else LessonIntroView(e.lesson, onClose = { nav.popBackStack("home", false) }) {
-                        nav.navigate(if (e.failed) "failed" else "lesson") { popUpTo("intro") { inclusive = true } }
+                    else LessonIntroView(e.lesson, progress.today(today).hearts, onClose = { nav.popBackStack("home", false) }) {
+                        progress = progress.today(today)
+                        if (progress.hearts > 0) {
+                            engine = LessonEngine(e.lesson, progress.hearts)
+                            nav.navigate("lesson") { popUpTo("intro") { inclusive = true } }
+                        }
                     }
                 }
                 composable("lesson") {
@@ -244,7 +248,7 @@ private fun Home(p: Progress, start: (Lesson) -> Unit) {
 }
 
 @Composable
-private fun LessonIntroView(lesson: Lesson, onClose: () -> Unit, onStart: () -> Unit) {
+internal fun LessonIntroView(lesson: Lesson, hearts: Int, onClose: () -> Unit, onStart: () -> Unit) {
     BackHandler(onBack = onClose)
     val intro = Intros.byLesson.getValue(lesson.id)
     Column(Modifier.fillMaxSize()) {
@@ -263,7 +267,9 @@ private fun LessonIntroView(lesson: Lesson, onClose: () -> Unit, onStart: () -> 
             }
             Spacer(Modifier.height(16.dp))
         }
-        Button(onClick = onStart, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth().padding(24.dp).height(54.dp)) {
+        if (hearts == 0) Text("ハートがありません。明日、5 個に回復します。", color = Color(0xFF708078),
+            modifier = Modifier.padding(horizontal = 24.dp), fontSize = 14.sp)
+        Button(onClick = onStart, enabled = hearts > 0, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth().padding(24.dp).height(54.dp)) {
             Text("はじめる", fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
     }
