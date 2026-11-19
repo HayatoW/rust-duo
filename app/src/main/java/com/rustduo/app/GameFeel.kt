@@ -122,7 +122,8 @@ internal fun LessonPathNode(lesson: Lesson, complete: Boolean, unlocked: Boolean
 @Composable
 internal fun ResultView(e: LessonEngine?, celebration: LessonCelebration?, failed: Boolean, home: () -> Unit) {
     BackHandler(onBack = home)
-    Column(Modifier.fillMaxSize().padding(24.dp)) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+    Column(ContentWidth.fillMaxHeight().padding(24.dp)) {
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
             Column(
                 Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(vertical = 12.dp),
@@ -153,6 +154,7 @@ internal fun ResultView(e: LessonEngine?, celebration: LessonCelebration?, faile
         Button(onClick = home, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp)) {
             Text("学習の道へ", fontWeight = FontWeight.Bold)
         }
+    }
     }
 }
 

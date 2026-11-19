@@ -25,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -50,6 +51,7 @@ import java.time.LocalDate
 internal val Green = Color(0xFF218651)
 internal val Ink = Color(0xFF203B36)
 private val Paper = Color(0xFFF8FAF5)
+internal val ContentWidth = Modifier.widthIn(max = 640.dp).fillMaxWidth()
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -205,24 +207,27 @@ fun RustDuo(store: ProgressStore) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Home(p: Progress, start: (Lesson) -> Unit) {
     Column {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("🦀", fontSize = 28.sp)
-            Text("🔥 ${p.streak}\n連続日数", color = Color(0xFFB65E18), fontWeight = FontWeight.Bold, fontSize = 12.sp, textAlign = TextAlign.Center)
-            Text("${p.xp} XP\n合計経験値", color = Green, fontWeight = FontWeight.Bold, fontSize = 12.sp, textAlign = TextAlign.Center)
-            Text("♥ ${p.hearts}/5\nハート", color = Color(0xFFC64C56), fontWeight = FontWeight.Bold, fontSize = 12.sp, textAlign = TextAlign.Center)
-        }
-        HorizontalDivider(color = Color(0xFFE1E8DE))
-        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(22.dp)) {
+        LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(bottom = 22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             item {
+                FlowRow(ContentWidth.padding(horizontal = 22.dp, vertical = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("🦀", fontSize = 28.sp, modifier = Modifier.align(Alignment.CenterVertically))
+                    Stat("🔥 ${p.streak}", "連続日数", Color(0xFFB65E18))
+                    Stat("${p.xp} XP", "合計経験値", Green)
+                    Stat("♥ ${p.hearts}/5", "ハート", Color(0xFFC64C56))
+                }
+                HorizontalDivider(color = Color(0xFFE1E8DE))
+            }
+            item { Column(ContentWidth.padding(start = 22.dp, end = 22.dp, top = 22.dp)) {
                 Text("さあ、Rust を育てよう。", fontWeight = FontWeight.ExtraBold, fontSize = 25.sp)
                 Text("1 レッスンずつ、できることを増やそう", color = Color(0xFF708078), modifier = Modifier.padding(top = 6.dp, bottom = 24.dp), fontSize = 13.sp)
-            }
+            } }
             Curriculum.units.forEachIndexed { unitIndex, unit ->
                 item {
-                    Surface(color = if (unitIndex % 2 == 0) Green else Color(0xFF456C93), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+                    Surface(color = if (unitIndex % 2 == 0) Green else Color(0xFF456C93), shape = RoundedCornerShape(20.dp), modifier = ContentWidth.padding(horizontal = 22.dp)) {
                         Column(Modifier.padding(20.dp)) {
                             Text("ユニット ${unitIndex + 1}  /  全 4 ユニット", color = Color.White.copy(alpha = .75f), fontSize = 12.sp)
                             Text(unit.title, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 23.sp, modifier = Modifier.padding(vertical = 4.dp))
@@ -234,28 +239,32 @@ private fun Home(p: Progress, start: (Lesson) -> Unit) {
                     item {
                         val complete = lesson.id in p.completed
                         val unlocked = p.unlocked(lesson.id)
-                        Column(Modifier.fillMaxWidth().padding(top = 12.dp).offset(x = when(index) { 0 -> (-40).dp; 1 -> 40.dp; else -> 0.dp }), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(ContentWidth.padding(horizontal = 22.dp).padding(top = 12.dp).offset(x = when(index) { 0 -> (-40).dp; 1 -> 40.dp; else -> 0.dp }), horizontalAlignment = Alignment.CenterHorizontally) {
                             if (index > 0) Text("•\n•", color = Color(0xFFCBD6C5), lineHeight = 10.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(bottom = 8.dp))
                             LessonPathNode(lesson, complete, unlocked) { start(lesson) }
                         }
                     }
                 }
             }
-            item { Text("毎日の小さな一歩が、確かな力に。", modifier = Modifier.fillMaxWidth().padding(12.dp), textAlign = TextAlign.Center, fontSize = 12.sp) }
+            item { Text("毎日の小さな一歩が、確かな力に。", modifier = ContentWidth.padding(12.dp), textAlign = TextAlign.Center, fontSize = 12.sp) }
         }
         Surface(shadowElevation = 8.dp) { Text("⌂  学習の道", color = Green, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(18.dp)) }
     }
 }
 
 @Composable
+private fun Stat(value: String, label: String, color: Color) =
+    Text("$value\n$label", Modifier.padding(horizontal = 6.dp), color = color, fontWeight = FontWeight.Bold, fontSize = 12.sp, textAlign = TextAlign.Center, softWrap = false)
+
+@Composable
 internal fun LessonIntroView(lesson: Lesson, hearts: Int, onClose: () -> Unit, onStart: () -> Unit) {
     BackHandler(onBack = onClose)
     val intro = Intros.byLesson.getValue(lesson.id)
-    Column(Modifier.fillMaxSize()) {
-        TextButton(onClick = onClose, modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)) {
+    Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+        TextButton(onClick = onClose, modifier = Modifier.align(Alignment.Start).padding(horizontal = 12.dp, vertical = 12.dp)) {
             Text("✕", fontSize = 23.sp, color = Color(0xFF839185))
         }
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
+        Column(Modifier.weight(1f).then(ContentWidth).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
             Text("このレッスンで学ぶこと", color = Green, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             Text(lesson.title, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(vertical = 18.dp))
             intro.sentences.forEach { sentence ->
@@ -268,8 +277,8 @@ internal fun LessonIntroView(lesson: Lesson, hearts: Int, onClose: () -> Unit, o
             Spacer(Modifier.height(16.dp))
         }
         if (hearts == 0) Text("ハートがありません。明日、5 個に回復します。", color = Color(0xFF708078),
-            modifier = Modifier.padding(horizontal = 24.dp), fontSize = 14.sp)
-        Button(onClick = onStart, enabled = hearts > 0, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth().padding(24.dp).height(54.dp)) {
+            modifier = ContentWidth.padding(horizontal = 24.dp), fontSize = 14.sp)
+        Button(onClick = onStart, enabled = hearts > 0, shape = RoundedCornerShape(14.dp), modifier = ContentWidth.padding(24.dp).heightIn(min = 54.dp)) {
             Text("はじめる", fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
     }
@@ -292,13 +301,14 @@ private fun LessonView(e: LessonEngine, saving: Boolean, revision: Int, onClose:
     var choice by remember(q, questionRound) { mutableStateOf("") }
     val selected = remember(q, questionRound) { mutableStateListOf<Int>() }
     val options = remember(q, questionRound) { q.choices.shuffled(kotlin.random.Random(e.lesson.id + questionRound + 19)) }
-    Column(Modifier.fillMaxSize()) {
-        Row(Modifier.padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { close = true }) { Text("✕", fontSize = 23.sp, color = Color(0xFF839185)) }
-            LinearProgressIndicator(progress = { progress }, modifier = Modifier.weight(1f).height(12.dp), color = Green, trackColor = Color(0xFFE2E9DD), strokeCap = androidx.compose.ui.graphics.StrokeCap.Round)
-            Text("♥ ${e.hearts}", color = Color(0xFFC64C56), fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp))
-        }
-        Column(Modifier.weight(1f).gameReveal(questionRound).verticalScroll(questionScroll).padding(horizontal = 24.dp)) {
+    val config = LocalConfiguration.current
+    val sideBySide = config.screenWidthDp > config.screenHeightDp && config.screenHeightDp < 480
+    val feedbackMaxHeight = config.screenHeightDp.dp * 0.55f
+    Box(Modifier.fillMaxSize()) {
+    val frame = if (sideBySide) Modifier.widthIn(max = 1040.dp).fillMaxWidth() else ContentWidth
+    val question: @Composable (Modifier) -> Unit = { modifier ->
+        Column(modifier.gameReveal(questionRound).verticalScroll(questionScroll), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(ContentWidth.padding(horizontal = 24.dp)) {
             Text(if (questionRound >= e.lesson.questions.size) "もう一度チャレンジ" else "${e.lesson.title}  /  ${questionRound + 1} 問目", color = Green, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 18.dp))
             Text(q.prompt, fontSize = 24.sp, lineHeight = 34.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(bottom = 20.dp))
             if (q.kind == Kind.CODE) Surface(color = Color(0xFF203B36), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp)) {
@@ -345,8 +355,12 @@ private fun LessonView(e: LessonEngine, saving: Boolean, revision: Int, onClose:
             }
             Spacer(Modifier.height(20.dp))
         }
-        Surface(color = when (feedback) { true -> CorrectTint; false -> IncorrectTint; null -> Paper }) {
-            Column(Modifier.fillMaxWidth().padding(24.dp)) {
+        }
+    }
+    val panel: @Composable (Modifier) -> Unit = { modifier ->
+        Surface(modifier, color = when (feedback) { true -> CorrectTint; false -> IncorrectTint; null -> Paper }) {
+            Box(contentAlignment = Alignment.BottomCenter) {
+            Column(ContentWidth.then(if (sideBySide) Modifier.fillMaxHeight() else Modifier.heightIn(max = feedbackMaxHeight)).padding(24.dp), verticalArrangement = Arrangement.Bottom) {
                 if (feedback != null) {
                     val reveal = remember(questionRound) { MutableTransitionState(false).apply { targetState = true } }
                     val accent = if (feedback) Green else IncorrectInk
@@ -378,6 +392,22 @@ private fun LessonView(e: LessonEngine, saving: Boolean, revision: Int, onClose:
                 }
             }
         }
+            }
+    }
+    Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(frame.padding(horizontal = 12.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = { close = true }) { Text("✕", fontSize = 23.sp, color = Color(0xFF839185)) }
+            LinearProgressIndicator(progress = { progress }, modifier = Modifier.weight(1f).height(12.dp), color = Green, trackColor = Color(0xFFE2E9DD), strokeCap = androidx.compose.ui.graphics.StrokeCap.Round)
+            Text("♥ ${e.hearts}", color = Color(0xFFC64C56), fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp))
+        }
+        if (sideBySide) Row(frame.weight(1f)) {
+            question(Modifier.weight(1.2f))
+            panel(Modifier.weight(1f).fillMaxHeight())
+        } else {
+            question(Modifier.weight(1f).fillMaxWidth())
+            panel(Modifier.fillMaxWidth())
+        }
+    }
     }
     if (close) AlertDialog(onDismissRequest = { close = false }, title = { Text("学習を中断しますか？") }, text = { Text("このレッスンの進み具合は保存されません。減ったハートはそのままです。") }, confirmButton = { TextButton(onClick = onClose) { Text("中断する") } }, dismissButton = { TextButton(onClick = { close = false }) { Text("学習に戻る") } })
 }
