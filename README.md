@@ -1,5 +1,7 @@
 # Rust Duo
 
+[![Built by Devin](https://raw.githubusercontent.com/club-cog/built-by-devin/main/badges/built-by-devin.svg)](https://devin.ai)
+
 ## 概要
 Rust を日本語で学ぶ Android アプリです。4 ユニット・12 レッスン・60 問を収録しています。
 四択、コードの出力予測、単語タイルで学習し、間違えた問題は最後に復習します。
